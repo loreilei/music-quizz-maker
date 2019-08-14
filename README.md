@@ -14,7 +14,7 @@ python main.rb <your quizz name> <the csv file describing the information to ext
 
 #Format of the csv file
 
-Each line must have maximum 3 values, separated by comas:
+Each line must have maximum 3 values, separated by spaces:
 - the url to the youtube video
 - the starting time
 - the duration of the extract

@@ -114,7 +114,7 @@ def make_blind_test(name, extracts):
 def csv_to_extracts_list(csv_file_path):
 	extracts=[]
 	with open(csv_file_path) as csvfile:
-		readCSV = csv.reader(csvfile, delimiter=',')
+		readCSV = csv.reader(csvfile, delimiter=' ')
 		for row in readCSV:
 			extract=dict()
 			extract['url']=str(row[0])
