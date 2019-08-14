@@ -4,6 +4,7 @@ import os
 import sys
 import csv
 import youtube_dl
+import ffmpeg
 
 #To log only errors
 class MyLogger(object):
@@ -53,18 +54,12 @@ def download_video(url,
 	with youtube_dl.YoutubeDL(ydl_opts) as ydl:
 		ydl.download([url])
 
-	audio_convert_command = 'ffmpeg -nostats -loglevel 0 -ss {1} -i {0} -t {2} -vn -af \'afade=in:st={3}:d={4},afade=out:st={5}:d={6}\' -y {7}'.format(
-		tmp_output,
-		start,
-		duration,
-		fade_in_start,
-		fade_in_duration,
-		fade_out_start,
-		fade_out_duration,
-		output
-		)
-	print(audio_convert_command)
-	os.system(audio_convert_command)
+	ffmpeg_input = ffmpeg.input(tmp_output, ss=start, t=duration)
+	audio = ffmpeg_input.audio.filter("afade", type='in', start_time=fade_in_start, duration=fade_in_duration)
+	audio = audio.filter("afade", type='out', start_time=fade_out_start, duration=fade_out_duration)
+	out = ffmpeg.output(audio, filename = output, format='ogg')
+	out.run(quiet=True, overwrite_output=True)
+
 	if(os.path.exists(tmp_output)):
 		os.system('rm {0}'.format(tmp_output))
 
