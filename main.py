@@ -9,6 +9,7 @@ from multiprocessing import cpu_count
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import as_completed
 import argparse
+import shutil
 
 #To log only errors
 class MyLogger(object):
@@ -137,10 +138,13 @@ def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('quizz_name')
 	parser.add_argument('extracts_file')
+	parser.add_argument('--zip', help='Zip resulting files', action='store_true')
 	args = parser.parse_args()
 
 	extracts=csv_to_extracts_list(args.extracts_file)
 	make_blind_test(name=args.quizz_name, extracts=extracts)
+	if(args.zip):
+		shutil.make_archive(args.quizz_name, 'zip', base_dir=args.quizz_name)
 
 if __name__== "__main__":
 	main()
