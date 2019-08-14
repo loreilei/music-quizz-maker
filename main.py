@@ -5,6 +5,9 @@ import sys
 import csv
 import youtube_dl
 import ffmpeg
+from multiprocessing import cpu_count
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import as_completed
 
 #To log only errors
 class MyLogger(object):
@@ -18,10 +21,7 @@ class MyLogger(object):
         print(msg)
 
 def progress_hook(d):
-	if d['status'] == 'downloading':
-		print('\r{} - {}'.format(d['filename'], d['_percent_str']), end='')
-	if d['status'] == 'finished':
-		print('')
+	pass
 
 def get_title(url):
 	ydl_opts = {
@@ -75,18 +75,37 @@ def make_blind_test(name, extracts):
 	if(not os.path.exists(name)):
 		os.mkdir(name)
 
+	def download_and_get_answer(name, n, url, start, duration):
+		download_video(	url=url,
+						output='./{0}/extract_{1}.ogg'.format(name, n),
+						start=start,
+						duration=duration,
+						fade_out_start=seconds(duration)-1)
+		return '<li>Extract {0}: <a href="{2}">{1}</a></li>'.format(n, get_title(url), url)
+
+	futures = []
+	future_names = dict()
+	with ThreadPoolExecutor(max_workers=cpu_count()) as executor:
+		for i in range(len(extracts)):
+			extract=extracts[i]
+			future = executor.submit(download_and_get_answer, name,
+																i+1,
+																extract['url'],
+																extract['start'],
+																extract['duration'])
+			future_names[future] = 'Extract {}'.format(i+1)
+			futures.append(future)
+
+	answers_html = []
+	for future in as_completed(futures):
+		answers_html.append(future.result())
+		print('{} completed'.format(future_names[future]))
+	answers_html.sort()
+
 	answers_file=open('{}/answers.html'.format(name), 'w+')
 	answers_file.write('<body><ul>')
-
-	for i in range(len(extracts)):
-		extract=extracts[i]
-		download_video(	url=extract['url'],
-						output='./{0}/extract_{1}.ogg'.format(name, i+1),
-						start=extract['start'],
-						duration=extract['duration'],
-						fade_out_start=seconds(extract['duration'])-1)
-		answers_file.write('<li>Extract {0}: <a href="{2}">{1}</a></li>'.format(i+1, get_title(url=extract['url']), extract['url']))
-
+	for answer_html in answers_html:
+		answers_file.write(answer_html)
 	answers_file.write('</body></ul>')
 	answers_file.close()
 
