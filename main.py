@@ -100,12 +100,11 @@ def make_blind_test(name, extracts):
 	for future in as_completed(futures):
 		answers_html.append(future.result())
 		print('{} completed'.format(future_names[future]))
-	answers_html.sort()
+	answers_html.sort(key=lambda extract: int(extract[extract.find(' '):extract.find(':')]))
 
 	answers_file=open('{}/answers.html'.format(name), 'w+')
 	answers_file.write('<body><ul>')
-	for answer_html in answers_html:
-		answers_file.write(answer_html)
+	answers_file.write(''.join(answers_html))
 	answers_file.write('</body></ul>')
 	answers_file.close()
 
