@@ -3,9 +3,34 @@
 import os
 import sys
 import csv
+import youtube_dl
+
+#To log only errors
+class MyLogger(object):
+    def debug(self, msg):
+        pass
+
+    def warning(self, msg):
+        pass
+
+    def error(self, msg):
+        print(msg)
+
+def progress_hook(d):
+	if d['status'] == 'downloading':
+		print('\r{} - {}'.format(d['filename'], d['_percent_str']), end='')
+	if d['status'] == 'finished':
+		print('')
 
 def get_title(url):
-	return os.popen('youtube-dl -e {0}'.format(url)).read().rstrip()
+	ydl_opts = {
+	    'format': 'bestaudio/best',
+	    'quiet': True,
+	}
+
+	with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+		info = ydl.extract_info(url, download=False)
+		return info['title']
 
 def download_video(url,
 					output,
@@ -15,22 +40,33 @@ def download_video(url,
 					fade_in_duration=1,
 					fade_out_start=15,
 					fade_out_duration=1):
-	dl_command = 'youtube-dl -q {0} -f bestaudio -o {1}_tmp'.format(url, output)
-	print(dl_command)
-	os.system(dl_command)
-	audio_convert_command = 'ffmpeg -nostats -loglevel 0 -ss {1} -i {0}_tmp -t {2} -vn -af \'afade=in:st={3}:d={4},afade=out:st={5}:d={6}\' -y {0}'.format(
-		output,
+	k = output.rfind(".")
+	tmp_output = output[:k] + '_tmp.' + output[k+1:]
+	ydl_opts = {
+	    'format': 'bestaudio/best',
+	    'quiet': True,
+	    'outtmpl': tmp_output,
+	    'logger': MyLogger(),
+	    'progress_hooks': [progress_hook],
+	}
+
+	with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+		ydl.download([url])
+
+	audio_convert_command = 'ffmpeg -nostats -loglevel 0 -ss {1} -i {0} -t {2} -vn -af \'afade=in:st={3}:d={4},afade=out:st={5}:d={6}\' -y {7}'.format(
+		tmp_output,
 		start,
 		duration,
 		fade_in_start,
 		fade_in_duration,
 		fade_out_start,
-		fade_out_duration
+		fade_out_duration,
+		output
 		)
 	print(audio_convert_command)
 	os.system(audio_convert_command)
-	if(os.path.exists('{0}_tmp'.format(output))):
-		os.system('rm {0}_tmp'.format(output))
+	if(os.path.exists(tmp_output)):
+		os.system('rm {0}'.format(tmp_output))
 
 def seconds(duration):
 	splitted = duration.split(':')
