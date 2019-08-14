@@ -8,6 +8,7 @@ import ffmpeg
 from multiprocessing import cpu_count
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import as_completed
+import argparse
 
 #To log only errors
 class MyLogger(object):
@@ -100,6 +101,7 @@ def make_blind_test(name, extracts):
 	for future in as_completed(futures):
 		answers_html.append(future.result())
 		print('{} completed'.format(future_names[future]))
+
 	answers_html.sort(key=lambda extract: int(extract[extract.find(' '):extract.find(':')]))
 
 	answers_file=open('{}/answers.html'.format(name), 'w+')
@@ -132,11 +134,13 @@ def csv_to_extracts_list(csv_file_path):
 
 
 def main():
-	if(len(sys.argv) > 2):
-		extracts=csv_to_extracts_list(sys.argv[2])
-		make_blind_test(name=sys.argv[1], extracts=extracts)
-	else:
-		print("Please provide the URL list file and name of blind test.")
+	parser = argparse.ArgumentParser()
+	parser.add_argument('quizz_name')
+	parser.add_argument('extracts_file')
+	args = parser.parse_args()
+
+	extracts=csv_to_extracts_list(args.extracts_file)
+	make_blind_test(name=args.quizz_name, extracts=extracts)
 
 if __name__== "__main__":
 	main()
