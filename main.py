@@ -36,6 +36,7 @@ def get_title(url):
         return info['title']
 
 def download_video(url,
+                    ffmpeg_exec,
                     output,
                     start='00:00:00',
                     duration='00:00:15',
@@ -60,7 +61,7 @@ def download_video(url,
     audio = ffmpeg_input.audio.filter("afade", type='in', start_time=fade_in_start, duration=fade_in_duration)
     audio = audio.filter("afade", type='out', start_time=fade_out_start, duration=fade_out_duration)
     out = ffmpeg.output(audio, filename = output, format='ogg')
-    out.run(quiet=True, overwrite_output=True)
+    out.run(quiet=True, overwrite_output=True, cmd=ffmpeg_exec)
 
     if(os.path.exists(tmp_output)):
         os.remove(tmp_output)
@@ -73,12 +74,13 @@ def seconds(duration):
     seconds = int(hours * 3600 + mins * 60 + secs)
     return seconds
 
-def make_blind_test(name, extracts):
+def make_blind_test(name, extracts, ffmpeg_exec):
     if(not os.path.exists(name)):
         os.mkdir(name)
 
     def download_and_get_answer(name, n, url, start, duration):
         download_video( url=url,
+                        ffmpeg_exec=ffmpeg_exec,
                         output='./{0}/extract_{1}.ogg'.format(name, n),
                         start=start,
                         duration=duration,
@@ -139,10 +141,11 @@ def main():
     parser.add_argument('quizz_name')
     parser.add_argument('extracts_file')
     parser.add_argument('--zip', help='Zip resulting files', action='store_true')
+    parser.add_argument('--ffmpeg_exec', help='The path to ffmpeg executable', default='ffmpeg')
     args = parser.parse_args()
 
     extracts=csv_to_extracts_list(args.extracts_file)
-    make_blind_test(name=args.quizz_name, extracts=extracts)
+    make_blind_test(name=args.quizz_name, extracts=extracts, ffmpeg_exec=args.ffmpeg_exec)
     if(args.zip):
         shutil.make_archive(args.quizz_name, 'zip', base_dir=args.quizz_name)
 
