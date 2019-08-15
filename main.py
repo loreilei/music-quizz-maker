@@ -284,12 +284,19 @@ def main():
     parser.add_argument('--extracts_file', help='Path to CSV file that contains the song extracts information')
     parser.add_argument('--zip', help='Zip resulting files', action='store_true')
     parser.add_argument('--ffmpeg_exec', help='The path to ffmpeg executable', default='ffmpeg')
-    parser.add_argument('--gui', help='Start in graphical mode, ignores other parameters', action='store_true')
     parser.add_argument('--output', help='Place to store the resulting files', default='./')
     args = parser.parse_args()
 
-
-    if(args.gui):
+    if(args.quizz_name and args.extracts_file):
+        make_music_quizz_from_args(
+            quizz_name=args.quizz_name,
+            extracts_file=args.extracts_file,
+            ffmpeg_exec=args.ffmpeg_exec,
+            zip=args.zip,
+            output_fn=print,
+            output_folder=args.output
+            )
+    else:
         app = QApplication([])
         main_window = QWidget()
         main_window.setWindowTitle("Music Quizz Maker")
@@ -297,18 +304,6 @@ def main():
         build_ui(main_window)
         main_window.show()
         app.exec_()
-    else:
-        create_zip = False
-        if(args.zip):
-            create_zip = True
-        make_music_quizz_from_args(
-            quizz_name=args.quizz_name,
-            extracts_file=args.extracts_file,
-            ffmpeg_exec=args.ffmpeg_exec,
-            zip=create_zip,
-            output_fn=print,
-            output_folder=args.output
-            )
 
 if __name__== "__main__":
     main()
