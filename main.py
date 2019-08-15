@@ -63,7 +63,7 @@ def download_video(url,
     out.run(quiet=True, overwrite_output=True)
 
     if(os.path.exists(tmp_output)):
-        os.system('rm {0}'.format(tmp_output))
+        os.remove(tmp_output)
 
 def seconds(duration):
     splitted = duration.split(':')
