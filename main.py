@@ -11,6 +11,10 @@ from concurrent.futures import as_completed
 import argparse
 import shutil
 
+from PyQt5.QtCore import QStandardPaths, QDir, QFileInfo
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QGridLayout, QLineEdit, QPushButton, QFileDialog, QCheckBox, QSizePolicy, QTextEdit
+from PyQt5.QtGui import QIcon
+
 #To log only errors
 class MyLogger(object):
     def debug(self, msg):
@@ -74,7 +78,7 @@ def seconds(duration):
     seconds = int(hours * 3600 + mins * 60 + secs)
     return seconds
 
-def make_blind_test(name, extracts, ffmpeg_exec):
+def make_blind_test(name, extracts, ffmpeg_exec, output_fn):
     if(not os.path.exists(name)):
         os.mkdir(name)
 
@@ -103,7 +107,7 @@ def make_blind_test(name, extracts, ffmpeg_exec):
     answers_html = []
     for future in as_completed(futures):
         answers_html.append(future.result())
-        print('{} completed'.format(future_names[future]))
+        output_fn('{} completed'.format(future_names[future]))
 
     answers_html.sort(key=lambda extract: int(extract[extract.find(' '):extract.find(':')]))
 
@@ -135,19 +139,146 @@ def csv_to_extracts_list(csv_file_path):
             extracts.append(extract)
     return extracts
 
+def build_ui(main_window):
+    layout = QGridLayout(main_window)
+
+    ffmpeg_lbl = QLabel(parent=main_window, text="FFmpeg command")
+    quizz_name_lbl = QLabel(parent=main_window, text="Quizz name")
+    csv_file_path_lbl = QLabel(parent=main_window, text="Extracts file")
+
+    ffmpeg_path_edit = QLineEdit(parent=main_window, text='ffmpeg')
+    ffmpeg_path_btn = QPushButton(parent=main_window, icon=QIcon.fromTheme('folder'))
+    quizz_name_edit = QLineEdit(parent=main_window, placeholderText='Quizz name')
+    csv_file_path_edit = QLineEdit(parent=main_window)
+    csv_file_path_btn = QPushButton(parent=main_window, icon=QIcon.fromTheme('folder'))
+
+    zip_checkbox = QCheckBox(parent=main_window, text='Put result in ZIP archive')
+
+    create_btn = QPushButton(parent=main_window, text="Create quizz")
+
+    log = QTextEdit(parent=main_window)
+    log.setReadOnly(True)
+    log.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    
+    layout.addWidget(ffmpeg_lbl,0,0)
+    layout.addWidget(quizz_name_lbl,1,0)
+    layout.addWidget(csv_file_path_lbl,2,0)
+
+    layout.addWidget(ffmpeg_path_edit,0,1)
+    layout.addWidget(ffmpeg_path_btn,0,2)
+    layout.addWidget(quizz_name_edit,1,1,1,2)
+    layout.addWidget(csv_file_path_edit,2,1)
+    layout.addWidget(csv_file_path_btn,2,2)
+
+    layout.addWidget(zip_checkbox,3, 0, 1 ,3)
+
+    layout.addWidget(create_btn,4,0,1,3)
+    layout.addWidget(log,5,0,1,3)
+    main_window.setLayout(layout)
+
+    def ffmpegPathClicked():
+        selected_file = ''
+        if(sys.platform == 'win32'):
+            selected_file = QFileDialog.getOpenFileName(
+                main_window,
+                'Select Path to ffmpeg',
+                QStandardPaths.writableLocation(QStandardPaths.ApplicationsLocation),
+                'Executable files (*.exe)')[0]
+        else:
+            dialog = QFileDialog(main_window)
+            dialog.setFilter(QDir.Files | QDir.Executable)
+            selected_file = dialog.getOpenFileName(
+                main_window,
+                'Select Path to ffmpeg',
+                QStandardPaths.writableLocation(QStandardPaths.ApplicationsLocation)
+                )[0]
+        if(selected_file):
+            ffmpeg_path_edit.setText(selected_file)
+
+    def csvFilePathClicked():
+        selected_file = QFileDialog.getOpenFileName(
+            main_window,
+            'Select Extracts file',
+            QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation),
+            'CSV Files (*.csv)')[0]
+        if(selected_file):
+            csv_file_path_edit.setText(selected_file)
+
+    ffmpeg_path_btn.clicked.connect(ffmpegPathClicked)
+    csv_file_path_btn.clicked.connect(csvFilePathClicked)
+
+    def log_fn(str):
+        log.setPlainText('{0}\n{1}'.format(
+            log.toPlainText(),
+            str
+            ))
+
+    def make_music_quizz():
+        log.setText('')
+        log_fn('Create quizz {}'.format(quizz_name_edit.text()))
+        make_music_quizz_from_args(
+            quizz_name=quizz_name_edit.text(),
+            extracts_file=csv_file_path_edit.text(),
+            ffmpeg_exec=ffmpeg_path_edit.text(),
+            zip=zip_checkbox.isChecked(),
+            output_fn=log_fn
+            )
+
+    create_btn.clicked.connect(make_music_quizz)
+
+    def check_create_button_active_state():
+        quizz_name_empty = bool(quizz_name_edit.text())
+        csv_file_path_empty = bool(csv_file_path_edit.text())
+        ffmpeg_path_edit_empty = bool(ffmpeg_path_edit.text())
+        csv_file_exits = QFileInfo.exists(csv_file_path_edit.text())
+        create_btn.setEnabled( quizz_name_empty
+                                and csv_file_path_empty
+                                and csv_file_exits
+                                and ffmpeg_path_edit_empty)
+
+    quizz_name_edit.textChanged.connect(check_create_button_active_state)
+    csv_file_path_edit.textChanged.connect(check_create_button_active_state)
+    ffmpeg_path_edit.textChanged.connect(check_create_button_active_state)
+
+    check_create_button_active_state()
+
+
+def make_music_quizz_from_args(quizz_name, extracts_file, ffmpeg_exec, zip, output_fn):
+    extracts=csv_to_extracts_list(extracts_file)
+    make_blind_test(name=quizz_name, extracts=extracts, ffmpeg_exec=ffmpeg_exec, output_fn=output_fn)
+    if(zip):
+        shutil.make_archive(quizz_name, 'zip', base_dir=quizz_name)
+        shutil.rmtree(quizz_name)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('quizz_name')
-    parser.add_argument('extracts_file')
+    parser.add_argument('--quizz_name', help='The name of the quizz to generate')
+    parser.add_argument('--extracts_file', help='Path to CSV file that contains the song extracts information')
     parser.add_argument('--zip', help='Zip resulting files', action='store_true')
     parser.add_argument('--ffmpeg_exec', help='The path to ffmpeg executable', default='ffmpeg')
+    parser.add_argument('--gui', help='Start in graphical mode, ignores other parameters', action='store_true')
     args = parser.parse_args()
 
-    extracts=csv_to_extracts_list(args.extracts_file)
-    make_blind_test(name=args.quizz_name, extracts=extracts, ffmpeg_exec=args.ffmpeg_exec)
-    if(args.zip):
-        shutil.make_archive(args.quizz_name, 'zip', base_dir=args.quizz_name)
+
+    if(args.gui):
+        app = QApplication([])
+        main_window = QWidget()
+        main_window.setWindowTitle("Music Quizz Maker")
+        main_window.resize(600,400)
+        build_ui(main_window)
+        main_window.show()
+        app.exec_()
+    else:
+        create_zip = False
+        if(args.zip):
+            create_zip = True
+        make_music_quizz_from_args(
+            quizz_name=args.quizz_name,
+            extracts_file=args.extracts_file,
+            ffmpeg_exec=args.ffmpeg_exec,
+            zip=create_zip,
+            output_fn=print
+            )
 
 if __name__== "__main__":
     main()
