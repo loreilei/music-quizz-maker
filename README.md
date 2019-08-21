@@ -44,7 +44,7 @@ The url is mandatory, the starting time dans the duration are optional, defaulte
 The format to use for the starting time and duration field is `HH:MM:SS`, with `HH` being the hours, `MM` the minutes and `SS` the seconds.
 See the example file `test.csv`.
 
-#Output
+# Output
 
 The script will output one OGG VOrbis file contraining the extract per URL.
 It also output a basic html file that contains the 'answers', meaning the link to the original youtube video.
