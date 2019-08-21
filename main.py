@@ -11,7 +11,7 @@ from concurrent.futures import as_completed
 import argparse
 import shutil
 
-from PyQt5.QtCore import QStandardPaths, QDir, QFileInfo
+from PyQt5.QtCore import QStandardPaths, QDir, QFileInfo, QThread, pyqtSignal
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QGridLayout, QLineEdit, QPushButton, QFileDialog, QCheckBox, QSizePolicy, QTextEdit
 from PyQt5.QtGui import QIcon
 
@@ -230,17 +230,53 @@ def build_ui(main_window):
             str
             ))
 
+    def set_enabled_input(enabled):
+        for input_elem in [ffmpeg_path_edit,
+                            ffmpeg_path_btn,
+                            quizz_name_edit,
+                            csv_file_path_edit,
+                            csv_file_path_btn,
+                            output_folder_edit,
+                            output_folder_btn,
+                            zip_checkbox,
+                            create_btn]:
+            input_elem.setEnabled(enabled)
+
+    def lock_inputs():
+        set_enabled_input(False)
+
+    def unlock_inputs():
+        set_enabled_input(True)
+
+
+    class MusicQuizzWorker(QThread):
+        clear_log = pyqtSignal()
+        log_text = pyqtSignal(str)
+
+        def __init__(self, parent=None):
+            QThread.__init__(self, parent)
+
+        def run(self):
+            self.clear_log.emit()
+            self.log_text.emit('Create quizz {}'.format(quizz_name_edit.text()))
+            make_music_quizz_from_args(
+                quizz_name=quizz_name_edit.text(),
+                extracts_file=csv_file_path_edit.text(),
+                ffmpeg_exec=ffmpeg_path_edit.text(),
+                zip=zip_checkbox.isChecked(),
+                output_fn=self.log_text.emit,
+                output_folder=output_folder_edit.text()
+                )
+
+    worker = MusicQuizzWorker()
+    worker.finished.connect(unlock_inputs)
+    worker.clear_log.connect(log.clear)
+    worker.log_text.connect(log_fn)
+
     def make_music_quizz():
+        lock_inputs()
         log.setText('')
-        log_fn('Create quizz {}'.format(quizz_name_edit.text()))
-        make_music_quizz_from_args(
-            quizz_name=quizz_name_edit.text(),
-            extracts_file=csv_file_path_edit.text(),
-            ffmpeg_exec=ffmpeg_path_edit.text(),
-            zip=zip_checkbox.isChecked(),
-            output_fn=log_fn,
-            output_folder=output_folder_edit.text()
-            )
+        worker.start()
 
     create_btn.clicked.connect(make_music_quizz)
 
