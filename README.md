@@ -20,7 +20,7 @@ pip install --user PyQt5
 # Usage
 
 ```bash
-python main.rb <your quizz name> <the csv file describing the information to extract>
+python music_quizz_maker.py <your quizz name> <the csv file describing the information to extract>
 ```
 
 You can do
