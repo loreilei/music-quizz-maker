@@ -149,13 +149,18 @@ def build_ui(main_window):
 
 
     ffmpeg_path_edit = QLineEdit(parent=main_window, text='ffmpeg')
-    ffmpeg_path_btn = QPushButton(parent=main_window, icon=QIcon.fromTheme('folder-open'))
+    folder_icon = QIcon.fromTheme('folder-open')
+    ffmpeg_path_btn = QPushButton(parent=main_window, icon=folder_icon)
     quizz_name_edit = QLineEdit(parent=main_window, placeholderText='Quizz name')
     csv_file_path_edit = QLineEdit(parent=main_window)
-    csv_file_path_btn = QPushButton(parent=main_window, icon=QIcon.fromTheme('folder-open'))
+    csv_file_path_btn = QPushButton(parent=main_window, icon=folder_icon)
     output_folder_edit = QLineEdit(parent=main_window)
     output_folder_edit.setText(QStandardPaths.writableLocation(QStandardPaths.MusicLocation))
-    output_folder_btn = QPushButton(parent=main_window, icon=QIcon.fromTheme('folder-open'))
+    output_folder_btn = QPushButton(parent=main_window, icon=folder_icon)
+    if(folder_icon.isNull()):
+        ffmpeg_path_btn.setText('Select ffmpeg executable')
+        csv_file_path_btn.setText('Select extracts file')
+        output_folder_btn.setText('Select output folder')
 
     zip_checkbox = QCheckBox(parent=main_window, text='Put result in ZIP archive')
 
