@@ -239,7 +239,7 @@ def build_ui(main_window):
             ffmpeg_exec=ffmpeg_path_edit.text(),
             zip=zip_checkbox.isChecked(),
             output_fn=log_fn,
-            output_folder=QStandardPaths.writableLocation(QStandardPaths.MusicLocation)
+            output_folder=output_folder_edit.text()
             )
 
     create_btn.clicked.connect(make_music_quizz)
