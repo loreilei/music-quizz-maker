@@ -94,31 +94,51 @@ def make_blind_test(name, extracts, ffmpeg_exec, output_fn):
                         fade_out_start=seconds(duration)-1)
         return '<li>Extract {0}: <a href="{2}">{1}</a></li>'.format(n, get_title(url), url)
 
-    futures = []
-    future_names = dict()
-    with ThreadPoolExecutor(max_workers=cpu_count()) as executor:
+    try:
+        output_fn('Multithreaded attempt to create the music quizz {}'.format(name))
+        futures = []
+        future_names = dict()
+        with ThreadPoolExecutor(max_workers=cpu_count()) as executor:
+            for i in range(len(extracts)):
+                extract=extracts[i]
+                output_fn('Downloading extract {}'.format(i+1))
+                future = executor.submit(download_and_get_answer, name,
+                                                                    i+1,
+                                                                    extract['url'],
+                                                                    extract['start'],
+                                                                    extract['duration'])
+                future_names[future] = 'Extract {}'.format(i+1)
+                futures.append(future)
+
+        answers_html = []
+        for future in as_completed(futures):
+            answers_html.append(future.result())
+            output_fn('{} completed'.format(future_names[future]))
+
+        answers_html.sort(key=lambda extract: int(extract[extract.find(' '):extract.find(':')]))
+
+        answers_file=open('{}/answers.html'.format(name), 'w+')
+        answers_file.write('<body><ul>')
+        answers_file.write(''.join(answers_html))
+        answers_file.write('</body></ul>')
+        answers_file.close()
+    except:
+        output_fn('Multithreaded attempt to create the music quizz {} failed, backup to single threaded approach.'.format(name))
+        if(os.path.exists(os.path.join(os.getcwd(), name))):
+            shutil.rmtree(name) # Cleanup multithreaded attempt
+            os.mkdir(name)
+        answers_file=open('{}/answers.html'.format(name), 'w+')
+        answers_file.write('<body><ul>')
         for i in range(len(extracts)):
             extract=extracts[i]
-            future = executor.submit(download_and_get_answer, name,
-                                                                i+1,
-                                                                extract['url'],
-                                                                extract['start'],
-                                                                extract['duration'])
-            future_names[future] = 'Extract {}'.format(i+1)
-            futures.append(future)
+            output_fn('Downloading extract {}'.format(i+1))
+            answer = download_and_get_answer(name, i+1, extract['url'], extract['start'], extract['duration'])
+            answers_file.write(answer)
+            output_fn('Extract {} completed'.format(i+1))
+        answers_file.write('</body></ul>')
+        answers_file.close()
+    output_fn('Done.')
 
-    answers_html = []
-    for future in as_completed(futures):
-        answers_html.append(future.result())
-        output_fn('{} completed'.format(future_names[future]))
-
-    answers_html.sort(key=lambda extract: int(extract[extract.find(' '):extract.find(':')]))
-
-    answers_file=open('{}/answers.html'.format(name), 'w+')
-    answers_file.write('<body><ul>')
-    answers_file.write(''.join(answers_html))
-    answers_file.write('</body></ul>')
-    answers_file.close()
 
 def csv_to_extracts_list(csv_file_path):
     extracts=[]
@@ -239,10 +259,14 @@ def build_ui(main_window):
     output_folder_btn.clicked.connect(output_path_clicked)
 
     def log_fn(str):
-        log.setPlainText('{0}\n{1}'.format(
-            log.toPlainText(),
-            str
-            ))
+        if(log.toPlainText()):
+            log.setPlainText('{0}\n{1}'.format(
+                log.toPlainText(),
+                str
+                ))
+            log.verticalScrollBar().setValue(log.verticalScrollBar().maximum())
+        else:
+            log.setPlainText(str)
 
     def set_enabled_input(enabled):
         for input_elem in [ffmpeg_path_edit,
@@ -272,7 +296,6 @@ def build_ui(main_window):
 
         def run(self):
             self.clear_log.emit()
-            self.log_text.emit('Create quizz {}'.format(quizz_name_edit.text()))
             make_music_quizz_from_args(
                 quizz_name=quizz_name_edit.text(),
                 extracts_file=csv_file_path_edit.text(),
@@ -318,15 +341,20 @@ def build_ui(main_window):
 
 def make_music_quizz_from_args(quizz_name, extracts_file, ffmpeg_exec, zip, output_fn, output_folder):
     extracts=csv_to_extracts_list(extracts_file)
-    make_blind_test(name=quizz_name, extracts=extracts, ffmpeg_exec=ffmpeg_exec, output_fn=output_fn)
-    output_quizz_folder='{0}/{1}'.format(output_folder, quizz_name)
-    shutil.move('./{}'.format(quizz_name), output_quizz_folder)
-    if(zip):
-        cwd = os.getcwd()
-        os.chdir(output_folder)
-        shutil.make_archive(quizz_name, 'zip', base_dir=quizz_name)
-        shutil.rmtree(output_quizz_folder)
-        os.chdir(cwd)
+    try:
+        make_blind_test(name=quizz_name, extracts=extracts, ffmpeg_exec=ffmpeg_exec, output_fn=output_fn)
+        output_quizz_folder='{0}/{1}'.format(output_folder, quizz_name)
+        shutil.move('./{}'.format(quizz_name), output_quizz_folder)
+        if(zip):
+            cwd = os.getcwd()
+            os.chdir(output_folder)
+            shutil.make_archive(quizz_name, 'zip', base_dir=quizz_name)
+            shutil.rmtree(output_quizz_folder)
+            os.chdir(cwd)
+    except:
+        output_fn('An issue prevented from creating quizz {}.'.format(quizz_name))
+        if(os.path.exists(os.path.join(os.getcwd(), quizz_name))):
+            shutil.rmtree(quizz_name)
 
 def main():
     parser = argparse.ArgumentParser()
