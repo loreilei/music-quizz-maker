@@ -15,6 +15,9 @@ from PyQt5.QtCore import QStandardPaths, QDir, QFileInfo, QThread, pyqtSignal
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QGridLayout, QLineEdit, QPushButton, QFileDialog, QCheckBox, QSizePolicy, QTextEdit
 from PyQt5.QtGui import QIcon
 
+def is_windows():
+    return os.name == 'nt'
+
 #To log only errors
 class MyLogger(object):
     def debug(self, msg):
@@ -147,8 +150,14 @@ def build_ui(main_window):
     csv_file_path_lbl = QLabel(parent=main_window, text="Extracts file")
     output_folder_lbl = QLabel(parent=main_window, text="Output Folder")
 
+    ffmpeg_cmd='ffmpeg'
+    if(is_windows()):
+        # Try to find ffmpeg exec next to this exec
+        possible_ffmpeg_cmd='{}/ffmpeg.exe'.format(os.getcwd())
+        if(os.path.exists(possible_ffmpeg_cmd)):
+            ffmpeg_cmd=possible_ffmpeg_cmd
 
-    ffmpeg_path_edit = QLineEdit(parent=main_window, text='ffmpeg')
+    ffmpeg_path_edit = QLineEdit(parent=main_window, text=ffmpeg_cmd)
     folder_icon = QIcon.fromTheme('folder-open')
     ffmpeg_path_btn = QPushButton(parent=main_window, icon=folder_icon)
     quizz_name_edit = QLineEdit(parent=main_window, placeholderText='Quizz name')
